@@ -1,0 +1,68 @@
+	INPP
+	AMEM 2
+	DSVS R000
+R001:	ENPR 1
+	AMEM 1
+	DSVS R002
+R002:	NADA
+	CRVL 1, -4 # t
+	CRVL 1, -4 # t
+	MULT
+	ARMZ 1, 0 # y
+	CRVL 0, 0 # z
+	CRVL 0, 1 # x
+	SOMA
+	CRVL 1, 0 # y
+	SOMA
+	ARMZ 0, 0 # z
+	CRVL 0, 0 # z
+	IMPR
+	DMEM 1
+	RTPR 1, 1
+R003:	ENPR 1
+	AMEM 1
+	DSVS R004
+R005:	ENPR 2
+	AMEM 1
+	DSVS R006
+R006:	NADA
+	CRVL 0, 0 # z
+	CRVL 1, 0 # x
+	SOMA
+	CRVL 2, -4 # y
+	SOMA
+	ARMZ 2, 0 # t
+	CRVL 2, 0 # t
+	CHPR R001, 2
+	CRVL 2, 0 # t
+	ARMZ 0, 0 # z
+	DMEM 1
+	RTPR 2, 1
+R004:	NADA
+	CRVL 1, -4 # y
+	CRCT 1
+	SOMA
+	ARMZ 1, 0 # x
+	CRVL 1, 0 # x
+	CHPR R005, 1
+	CRVL 0, 0 # z
+	CRVL 1, 0 # x
+	SOMA
+	CHPR R001, 1
+	DMEM 1
+	RTPR 1, 1
+R000:	NADA
+	CRCT 1
+	ARMZ 0, 0 # z
+	CRCT 3
+	ARMZ 0, 1 # x
+	CRVL 0, 1 # x
+	CHPR R003, 0
+	CRVL 0, 1 # x
+	CHPR R001, 0
+	CRVL 0, 1 # x
+	IMPR
+	CRVL 0, 0 # z
+	IMPR
+	DMEM 2
+	PARA

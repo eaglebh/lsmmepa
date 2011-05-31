@@ -1,0 +1,33 @@
+	INPP
+	AMEM 3
+	DSVS R000
+R000:	NADA
+	LEIT
+	ARMZ 0, 0 # m
+	LEIT
+	ARMZ 0, 1 # n
+	CRCT 0
+	ARMZ 0, 2 # s
+R001:	NADA
+	CRVL 0, 0 # m
+	CRVL 0, 1 # n
+	CMEG
+	DSVF R002
+	CRVL 0, 2 # s
+	CRVL 0, 0 # m
+	CRVL 0, 0 # m
+	MULT
+	SOMA
+	ARMZ 0, 2 # s
+	CRVL 0, 0 # m
+	IMPR
+	CRVL 0, 2 # s
+	IMPR
+	CRVL 0, 0 # m
+	CRCT 1
+	SOMA
+	ARMZ 0, 0 # m
+	DSVS r01
+R002:	NADA
+	DMEM 3
+	PARA
