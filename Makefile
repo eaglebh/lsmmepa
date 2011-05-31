@@ -20,7 +20,7 @@ all:
 	${CC} ${CFILES} -o ${EXEC} ${CFLAGS}
 	chmod a+x ${EXEC}
 
-test:
+test: all
 	bash test.sh
 
 clean: clean
