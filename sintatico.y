@@ -249,9 +249,8 @@ lista_de_identificadores:
 
 lista_de_identificadores_loop:
     {
-         if (symbol2)
-              if (symbol2->nl == nl)
-                    yyerror("Variável já declarada.");
+          if (symbol2 && symbol2->nl == nl)
+              yyerror("Variável já declarada.");
     }
     |COMMA identificador
     {
@@ -445,7 +444,6 @@ comando_leitura_1:
     comando_leitura_2
 ;
 
-/* 18.2.2 */
 comando_leitura_2:
     | COMMA comando_leitura_1
 ;
@@ -467,7 +465,6 @@ atribuicao:
     }
 ;
 
-/* 20. */
 chamada_de_procedimento:
     identificador
     {
@@ -526,7 +523,6 @@ comando_condicional:
     }
 ;
 
-/* 22.1 */
 comando_condicional_else:
     %prec LOWER_THAN_ELSE
     | ELSE comando_sem_label

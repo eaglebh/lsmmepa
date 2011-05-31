@@ -52,7 +52,7 @@ letter        [a-zA-Z_]
 "read"               { return READ;      }
 "call"               { return CALL;      }
 
-{digit}+             { return NUMBER;        }
+{digit}+             { return NUMBER;    }
 
 {letter}({letter}|{digit})* { return IDENT; }
 
