@@ -20,5 +20,8 @@ all:
 	${CC} ${CFILES} -o ${EXEC} ${CFLAGS}
 	chmod a+x ${EXEC}
 
+test:
+	bash test.sh
+
 clean: clean
 	rm -rf ${OUTFILES} ${OUTPUT_SYN_H} *~ ${EXEC}

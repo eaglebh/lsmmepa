@@ -712,5 +712,14 @@ int main(int argc, char *argv[]) {
     parameters = stack_create();
     labels = stack_create();
 
-    yyparse();
+    if (argc > 1)
+      stdin = fopen(argv[1], "r");
+
+    if (stdin)
+      yyparse();
+    else
+      printf("Erro de leitura no arquivo de entrada ou arquivo inexistente\n");
+
+    if (argc > 1 && stdin)
+      fclose(stdin);
 }
