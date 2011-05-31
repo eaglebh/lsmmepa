@@ -23,5 +23,5 @@ all:
 test: all
 	bash test.sh
 
-clean: clean
+clean:
 	rm -rf ${OUTFILES} ${OUTPUT_SYN_H} *~ ${EXEC}
