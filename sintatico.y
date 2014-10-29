@@ -64,7 +64,7 @@ int write_label(void) {
 %token OF;
 %token GOTO;
 %token PROGRAM;
-%token VAR;
+%token DECLARE;
 %token T_BEGIN;
 %token END;
 %token FUNCTION;
@@ -95,7 +95,7 @@ programa:
     {
         symbol1 = symbol_create(strdup(yytext), nl, offset); stack_push(aux, symbol1);
     }
-    LPAREN lista_de_identificadores RPAREN SEMICOLON bloco PERIOD
+    bloco PERIOD
     {
         printf("\tPARA\n");
     }
@@ -206,7 +206,7 @@ indice:
 ;
 
 parte_de_declaracao_de_variaveis:
-    VAR
+    DECLARE
     {
         while (symbol1 = stack_pop(aux));
         offset = 0;
@@ -234,7 +234,7 @@ parte_de_declaracao_de_variaveis_loop:
 ;
 
 declaracao_de_variaveis:
-    lista_de_identificadores COLON tipo
+    tipo lista_de_identificadores
 ;
 
 lista_de_identificadores:
@@ -369,7 +369,7 @@ secao_de_parametros_formais:
 
     }
     COLON identificador
-    | VAR lista_de_identificadores
+    | DECLARE lista_de_identificadores
     {
         while (symbol1 = stack_pop(aux)) {
             symbol1->cat = C_PARAMETER;

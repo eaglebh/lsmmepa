@@ -36,7 +36,7 @@ letter        [a-zA-Z_]
 "of"                 { return OF;        }
 "array"              { return ARRAY;     }
 "program"            { return PROGRAM;   }
-"var"                { return VAR;       }
+"var"                { return DECLARE;       }
 "begin"              { return T_BEGIN;   }
 "end"                { return END;       }
 "function"           { return FUNCTION;  }
