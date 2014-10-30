@@ -83,6 +83,7 @@ int write_label(void) {
 %token NUMBER;
 %token TRUE;
 %token FALSE;
+%token STRING;
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -553,6 +554,7 @@ comando_repetitivo:
         printf("\tDSVS r%02d\n", symbol2->label);
         printf("R%03d:\tNADA\n", symbol1->label);
     }
+    END
 ;
 
 lista_de_expressoes:
@@ -655,7 +657,7 @@ fator:
 
         printf("\tCRCT %s\n", yytext);
     }
-    | TRUE | FALSE
+    | TRUE | FALSE | STRING
     //%prec LOWER_THAN_LPAREN
     | chamada_de_funcao
     | LPAREN expressao RPAREN

@@ -5,33 +5,33 @@
 
 digit         [0-9]
 letter        [a-zA-Z_]
+PRINTED '[^'\n]*'
 
 %%
 
-"+"                  { return PLUS;       }
-"-"                  { return MINUS;      }
-"*"                  { return TIMES;      }
-"("                  { return LPAREN;     }
-")"                  { return RPAREN;     }
-";"                  { return SEMICOLON;  }
-","                  { return COMMA;      }
-".."                 { return PERIOD2;    }
-"."                  { return PERIOD;     }
-":="                 { return BECOMES;    }
-":"                  { return COLON;      }
-"="                  { return EQL;        }
-"!="                 { return NEQ;        }
-"<"                  { return LSS;        }
-">"                  { return GTR;        }
-"<="                 { return LEQ;        }
-">="                 { return GEQ;        }
-"["                  { return LBRACKET;   }
-"]"                  { return RBRACKET;   }
-"and"                { return AND;        }
-"/"                  { return DIV;        }
-"or"                 { return OR;         }
-"not"                { return NOT;        }
-
+"+"                  { return PLUS;      }
+"-"                  { return MINUS;     }
+"*"                  { return TIMES;     }
+"("                  { return LPAREN;    }
+")"                  { return RPAREN;    }
+";"                  { return SEMICOLON; }
+","                  { return COMMA;     }
+".."                 { return PERIOD2;   }
+"."                  { return PERIOD;    }
+":="                 { return BECOMES;   }
+":"                  { return COLON;     }
+"="                  { return EQL;       }
+"!="                 { return NEQ;       }
+"<"                  { return LSS;       }
+">"                  { return GTR;       }
+"<="                 { return LEQ;       }
+">="                 { return GEQ;       }
+"["                  { return LBRACKET;  }
+"]"                  { return RBRACKET;  }
+"and"                { return AND;       }
+"/"                  { return DIV;       }
+"or"                 { return OR;        }
+"not"                { return NOT;       }
 "goto"               { return GOTO;      }
 "of"                 { return OF;        }
 "array"              { return ARRAY;     }
@@ -56,11 +56,15 @@ letter        [a-zA-Z_]
 
 {digit}+             { return NUMBER;    }
 
+{PRINTED} 			 { return STRING;    }
+
 {letter}({letter}|{digit})* { return IDENT; }
 
 \(\*[^\*][^\)]*\*\) { printf("Comentário: \"%s\"\n", yytext); }
 
 [ \t\n]+
+
+
 
 .                   { printf("Inválido: \"%s\"\n", yytext); }
 
