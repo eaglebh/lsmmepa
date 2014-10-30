@@ -20,7 +20,7 @@ letter        [a-zA-Z_]
 ":="                 { return BECOMES;    }
 ":"                  { return COLON;      }
 "="                  { return EQL;        }
-"<>"                 { return NEQ;        }
+"!="                 { return NEQ;        }
 "<"                  { return LSS;        }
 ">"                  { return GTR;        }
 "<="                 { return LEQ;        }
@@ -28,7 +28,7 @@ letter        [a-zA-Z_]
 "["                  { return LBRACKET;   }
 "]"                  { return RBRACKET;   }
 "and"                { return AND;        }
-"div"                { return DIV;        }
+"/"                  { return DIV;        }
 "or"                 { return OR;         }
 "not"                { return NOT;        }
 
@@ -36,7 +36,7 @@ letter        [a-zA-Z_]
 "of"                 { return OF;        }
 "array"              { return ARRAY;     }
 "program"            { return PROGRAM;   }
-"declare"            { return DECLARE;       }
+"declare"            { return DECLARE;   }
 "begin"              { return T_BEGIN;   }
 "end"                { return END;       }
 "function"           { return FUNCTION;  }
@@ -51,6 +51,8 @@ letter        [a-zA-Z_]
 "write"              { return WRITE;     }
 "read"               { return READ;      }
 "call"               { return CALL;      }
+"false"              { return FALSE;     }
+"true"               { return TRUE;      }
 
 {digit}+             { return NUMBER;    }
 

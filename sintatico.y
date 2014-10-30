@@ -81,6 +81,8 @@ int write_label(void) {
 %token CALL;
 %token IDENT;
 %token NUMBER;
+%token TRUE;
+%token FALSE;
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -158,7 +160,7 @@ parte_de_declaracao_de_subrotinas_opcional:
 
 parte_de_declaracao_de_labels:
     LABEL
-    NUMBER
+    identificador
     {
         symbol1 = symbol_create_label(label);
         label++;
@@ -194,7 +196,7 @@ definicao_de_tipo:
 
 tipo:
     identificador
-    | ARRAY LBRACKET indice tipo_loop RBRACKET OF tipo
+    | ARRAY numero OF tipo
 ;
 
 tipo_loop:
@@ -653,6 +655,7 @@ fator:
 
         printf("\tCRCT %s\n", yytext);
     }
+    | TRUE | FALSE
     //%prec LOWER_THAN_LPAREN
     | chamada_de_funcao
     | LPAREN expressao RPAREN
