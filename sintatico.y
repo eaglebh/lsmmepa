@@ -95,7 +95,7 @@ programa:
     {
         symbol1 = symbol_create(strdup(yytext), nl, offset); stack_push(aux, symbol1);
     }
-    bloco PERIOD
+    bloco
     {
         printf("\tPARA\n");
     }
@@ -212,7 +212,6 @@ parte_de_declaracao_de_variaveis:
         offset = 0;
     }
     declaracao_de_variaveis
-    SEMICOLON
     parte_de_declaracao_de_variaveis_loop
 ;
 
@@ -228,8 +227,8 @@ parte_de_declaracao_de_variaveis_loop:
         }
     }
     |
-    declaracao_de_variaveis
     SEMICOLON
+    declaracao_de_variaveis
     parte_de_declaracao_de_variaveis_loop
 ;
 
@@ -381,7 +380,7 @@ secao_de_parametros_formais:
 ;
 
 comando_composto:
-    T_BEGIN comando comando_composto_loop END
+    DO comando comando_composto_loop END
 ;
 
 comando_composto_loop:
@@ -521,6 +520,7 @@ comando_condicional:
         symbol1 = stack_pop(labels);
         printf("R%03d:\tNADA\n", symbol1->label);
     }
+    END
 ;
 
 comando_condicional_else:
