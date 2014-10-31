@@ -1,0 +1,10 @@
+program teste2
+    declare
+        integer i, j, k;
+        boolean b
+    do  i := 4 * (5-3) * (-10) / 50;
+        j := i * 88;
+        k := i* j / k;  k := -4 +3;
+        b := not false;
+        b := (4 + (3 - 7) = 0) or 1 != 4
+    end
