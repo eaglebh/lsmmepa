@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "struct/symbol.h"
 #include "struct/stack.h"
 
 extern int yylex(void);
-void yyerror(char const *);
+void yyerror(const char * format, ...);
 
 extern char *yytext;
 
@@ -124,7 +125,9 @@ bloco:
         nvars = 0;
 
         while (symbol1 = stack_first(ts)) {
-            if ((symbol1->cat == C_PROCEDURE || symbol1->cat == C_FUNCTION) && symbol1->nl == nl) {
+            if ((symbol1->cat == C_PROCEDURE || 
+                symbol1->cat == C_FUNCTION) && 
+                    symbol1->nl == nl) {
                 break;
             }
 
@@ -265,7 +268,6 @@ lista_de_identificadores_loop:
 
 parte_de_declaracao_de_subrotinas:
     declaracao_de_procedimento SEMICOLON parte_de_declaracao_de_subrotinas_loop
-    | declaracao_de_funcao SEMICOLON    parte_de_declaracao_de_subrotinas_loop
 ;
 
 parte_de_declaracao_de_subrotinas_loop:
@@ -287,7 +289,7 @@ declaracao_de_procedimento:
         symb_proc->nl = nl;
         symb_proc->label = label - 1;
     }
-    parametros_formais_opcional SEMICOLON
+    parametros_formais_opcional
     {
         symb_proc->nParameter = parameters->size;
         symb_proc->parameters = malloc(sizeof(int) * symb_proc->nParameter);
@@ -309,44 +311,6 @@ declaracao_de_procedimento:
     bloco
 ;
 
-declaracao_de_funcao:
-    FUNCTION
-    {
-        write_label();
-        printf(":\tENPR %d\n", nl);
-    }
-    identificador
-    {
-        if (symbol1 && symbol1->nl == nl)
-             yyerror("Função já declarada.");
-
-        symb_func = symbol_create_function(strdup(yytext));
-        symb_func->nl = nl;
-        symb_func->label = label - 1;
-    }
-    parametros_formais_opcional
-    {
-        symb_func->nParameter = parameters->size;
-        symb_func->parameters = malloc(sizeof(int) * symb_func->nParameter);
-        int i;
-
-        i = symb_func->nParameter - 1;
-        offset = -4;
-        stack_push(ts, symb_func);
-        while (symbol1 = stack_pop(parameters)) {
-            symbol1->offset = offset;
-            offset--;
-            stack_push(ts, symbol1);
-            symb_func->parameters[i] = symbol1->passage;
-            i--;
-        }
-        symb_func->offset = offset;
-        symb_func = NULL;
-        offset = 0;
-    }
-    COLON identificador SEMICOLON bloco
-;
-
 parametros_formais_opcional:
     | parametros_formais
 ;
@@ -360,26 +324,12 @@ parametros_formais_loop:
 ;
 
 secao_de_parametros_formais:
-    lista_de_identificadores
+    tipo identificador
     {
-
-        while (symbol1 = stack_pop(aux)) {
-            symbol1->cat = C_PARAMETER;
-            symbol1->passage = P_VALUE;
-            stack_push(parameters, symbol1);
-        }
-
+        symbol1->cat = C_PARAMETER;
+        symbol1->passage = P_VALUE;
+        stack_push(parameters, symbol1);
     }
-    COLON identificador
-    | DECLARE lista_de_identificadores
-    {
-        while (symbol1 = stack_pop(aux)) {
-            symbol1->cat = C_PARAMETER;
-            symbol1->passage = P_ADDRESS;
-            stack_push(parameters, symbol1);
-        }
-    }
-    COLON identificador
 ;
 
 comando_composto:
@@ -615,7 +565,7 @@ fator:
             yyerror("variável não declarada.");
 
         if (symb_proc && nparam >= symb_proc->nParameter)
-            yyerror("procedimento chamado com número inválido de parâmetros.");
+            yyerror("procedimento %s chamado com número inválido de parâmetros %d de %d.", symb_proc->id, nparam, symb_proc->nParameter);
 
         if (symb_proc && symb_proc->parameters[nparam] == P_ADDRESS) {
             if (symbol1->cat == C_VARIABLE)
@@ -702,8 +652,15 @@ identificador:
 
 %%
 
-void yyerror(char const *s) {
-    fprintf(stderr, "erro: %s\n", s);
+void yyerror(const char * format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start (args, format);
+    vsprintf (buffer,format, args);
+    va_end (args);
+
+    fprintf (stderr, "erro: %s\n",buffer);
+
     exit(EXIT_FAILURE);
 }
 
