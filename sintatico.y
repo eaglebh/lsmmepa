@@ -106,6 +106,7 @@ programa:
 ;
 
 bloco:
+    declare_opcional
     parte_de_declaracao_de_labels_opcional
     parte_de_declaracao_de_tipos_opcional
     parte_de_declaracao_de_variaveis_opcional
@@ -143,8 +144,13 @@ bloco:
     }
 ;
 
+declare_opcional:
+| DECLARE
+
 parte_de_declaracao_de_labels_opcional:
     | parte_de_declaracao_de_labels
+    | parte_de_declaracao_de_labels SEMICOLON
+    | parte_de_declaracao_de_labels SEMICOLON parte_de_declaracao_de_labels
 ;
 
 parte_de_declaracao_de_tipos_opcional:
@@ -171,12 +177,11 @@ parte_de_declaracao_de_labels:
         strcpy(symbol1->id, strdup(yytext));
         stack_push(ts, symbol1);
     }
-    parte_de_declaracao_de_labels_loop
-    SEMICOLON
+    parte_de_declaracao_de_labels_loop    
 ;
 
 parte_de_declaracao_de_labels_loop:
-    | COMMA    NUMBER
+    | COMMA    identificador
     {
         symbol1 = symbol_create_label(label);
         label++;
@@ -212,7 +217,6 @@ indice:
 ;
 
 parte_de_declaracao_de_variaveis:
-    DECLARE
     {
         while (symbol1 = stack_pop(aux));
         offset = 0;
@@ -341,7 +345,7 @@ comando_composto_loop:
 ;
 
 comando:
-    NUMBER
+    identificador
     {
         symbol1 = stack_find(ts, yytext);
         symbol1->nl = nl;
