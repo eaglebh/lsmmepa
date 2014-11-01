@@ -22,7 +22,7 @@ t_symbol *symb_atr = NULL;
 t_symbol *symb_proc = NULL;
 t_symbol *symb_func = NULL;
 
-int nl = 0;
+int nl = -1;
 int offset = 0;
 int nvars;        // Número de variáveis locais
 int nparam;        // Número do parâmetro
@@ -36,6 +36,8 @@ int write_label(void) {
     return l;
 }
 %}
+
+%define parse.error verbose
 
 %token PLUS;
 %token MINUS;
@@ -106,21 +108,8 @@ programa:
 ;
 
 bloco:
-    declare_opcional
-    parte_de_declaracao_de_labels_opcional
-    parte_de_declaracao_de_tipos_opcional
-    parte_de_declaracao_de_variaveis_opcional
-    {
-        printf("\tDSVS ");
-        symbol1 = symbol_create_label(write_label());
-        printf("\n");
-        stack_push(labels, symbol1);
-    }
-    parte_de_declaracao_de_subrotinas_opcional
-    {
-        symbol1 = stack_pop(labels);
-        printf("R%03d:\tNADA\n", symbol1->label);
-    }
+    {nl++; }
+    declaracoes_opcionais    
     comando_composto
     {
         nvars = 0;
@@ -129,6 +118,9 @@ bloco:
             if ((symbol1->cat == C_PROCEDURE || 
                 symbol1->cat == C_FUNCTION) && 
                     symbol1->nl == nl) {
+                break;
+            }
+            if (symbol1->nl != nl) {
                 break;
             }
 
@@ -141,20 +133,35 @@ bloco:
         if (symbol1) {
             printf("\tRTPR %d, %d\n", nl, symbol1->nParameter);
         }
+        nl--;
     }
 ;
 
-declare_opcional:
-| DECLARE
+declaracoes_opcionais:
+    | DECLARE 
+    parte_de_declaracoes_opcionais_loop
+    {
+        printf("\tDSVS ");
+        symbol1 = symbol_create_label(write_label());
+        printf("\n");
+        stack_push(labels, symbol1);
+    }   
+    parte_de_declaracao_de_subrotinas_opcional
+    {
+        symbol1 = stack_pop(labels);
+        printf("R%03d:\tNADA\n", symbol1->label);
+    }
+
+parte_de_declaracoes_opcionais_loop:
+    parte_de_declaracoes_opcionais
+    | parte_de_declaracoes_opcionais SEMICOLON parte_de_declaracoes_opcionais_loop
+
+parte_de_declaracoes_opcionais:
+    parte_de_declaracao_de_labels_opcional
+    | parte_de_declaracao_de_variaveis_opcional
 
 parte_de_declaracao_de_labels_opcional:
     | parte_de_declaracao_de_labels
-    | parte_de_declaracao_de_labels SEMICOLON
-    | parte_de_declaracao_de_labels SEMICOLON parte_de_declaracao_de_labels
-;
-
-parte_de_declaracao_de_tipos_opcional:
-    | parte_de_declaracao_de_tipos
 ;
 
 parte_de_declaracao_de_variaveis_opcional:
@@ -162,7 +169,7 @@ parte_de_declaracao_de_variaveis_opcional:
 ;
 
 parte_de_declaracao_de_subrotinas_opcional:
-    |
+    | 
     { nl++; offset = 0; }
     parte_de_declaracao_de_subrotinas
     { nl--; }
@@ -191,29 +198,9 @@ parte_de_declaracao_de_labels_loop:
     parte_de_declaracao_de_labels_loop
 ;
 
-parte_de_declaracao_de_tipos:
-    TYPE definicao_de_tipo SEMICOLON parte_de_declaracao_de_tipos_loop
-;
-
-parte_de_declaracao_de_tipos_loop:
-    | definicao_de_tipo SEMICOLON    parte_de_declaracao_de_tipos_loop
-;
-
-definicao_de_tipo:
-    identificador EQL tipo
-;
-
 tipo:
     identificador
     | ARRAY numero OF tipo
-;
-
-tipo_loop:
-    | COMMA indice tipo_loop
-;
-
-indice:
-    numero PERIOD2    numero
 ;
 
 parte_de_declaracao_de_variaveis:
@@ -271,6 +258,8 @@ lista_de_identificadores_loop:
 ;
 
 parte_de_declaracao_de_subrotinas:
+    declaracao_de_procedimento
+    |
     declaracao_de_procedimento SEMICOLON parte_de_declaracao_de_subrotinas_loop
 ;
 
@@ -312,7 +301,9 @@ declaracao_de_procedimento:
         symb_proc = NULL;
         offset = 0;
     }
+    {nl--;}
     bloco
+    {nl++;}
 ;
 
 parametros_formais_opcional:
@@ -328,13 +319,20 @@ parametros_formais_loop:
 ;
 
 secao_de_parametros_formais:
-    tipo identificador
+    parameter_type identificador
     {
         symbol1->cat = C_PARAMETER;
         symbol1->passage = P_VALUE;
         stack_push(parameters, symbol1);
     }
 ;
+
+parameter_type  : tipo 
+                | proc_signature;
+proc_signature  : PROCEDURE identificador LPAREN type_list RPAREN
+                | PROCEDURE identificador;
+type_list       : parameter_type 
+                | type_list COMMA parameter_type;
 
 comando_composto:
     DO comando comando_composto_loop END
@@ -347,7 +345,7 @@ comando_composto_loop:
 comando:
     identificador
     {
-        symbol1 = stack_find(ts, yytext);
+//        symbol1 = stack_find(ts, yytext);
         symbol1->nl = nl;
         if (symbol1)
             printf("R%03d:\tENRT %d %d\n", symbol1->label, nl, nvars);
@@ -367,6 +365,7 @@ comando_sem_label:
     | comando_repetitivo
     | comando_escrita
     | comando_leitura
+    | bloco
 ;
 
 comando_escrita:
@@ -442,9 +441,9 @@ lista_de_expressoes_opcional:
 ;
 
 desvio:
-    GOTO NUMBER
+    GOTO identificador
     {
-        symbol1 = stack_find(ts, yytext);
+        //symbol1 = stack_find(ts, yytext);
 
         if (symbol1)
             printf("\tDSVR r%02d, %d, %d\n", symbol1->label, symbol1->nl, nl);
@@ -566,7 +565,7 @@ fator:
     {
         symbol1 = stack_find(ts, yytext);
         if (!symbol1)
-            yyerror("variável não declarada.");
+            yyerror("variável não declarada %s.", yytext);
 
         if (symb_proc && nparam >= symb_proc->nParameter)
             yyerror("procedimento %s chamado com número inválido de parâmetros %d de %d.", symb_proc->id, nparam, symb_proc->nParameter);

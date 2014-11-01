@@ -1,15 +1,15 @@
 program test6
     declare
-        boolean b
-        procedure p(procedure f)
+        boolean b;
+        procedure p(procedure r ff)
         declare
-            integer x
+            integer x;
             procedure q do write(x) end
-        do  x := if b then 5 else 0 end;
+        do  if b then x:=5 else x:=0 end;
             b := not b;
-            if b then p(q) end
-            f
-        end
+            if b then p(q) end;
+            ff
+        end;
         procedure r do write('.') end
     do  write('x'); write('=');
         b :=false;

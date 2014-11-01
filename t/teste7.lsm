@@ -8,7 +8,7 @@ program teste7
             integer y
         do  y := 1;
             declare
-                integer z;
+                integer z
             do  z := x + y;
                 if z < 10 then goto L1 else goto L2 end
             end

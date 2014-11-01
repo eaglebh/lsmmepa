@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-lfl
+CFLAGS=-lfl -g
 EXEC=compilador
 LIB_C_FILES=struct/symbol.c struct/object.c struct/list.c struct/stack.c
 
