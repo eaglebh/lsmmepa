@@ -109,7 +109,8 @@ programa:
 
 bloco:
     {nl++; }
-    declaracoes_opcionais    
+    DECLARE
+    decl_list    
     comando_composto
     {
         nvars = 0;
@@ -137,41 +138,32 @@ bloco:
     }
 ;
 
+decl_list       : declaracoes_opcionais 
+                | decl_list SEMICOLON declaracoes_opcionais ;
+
 declaracoes_opcionais:
-    | DECLARE 
-    parte_de_declaracoes_opcionais_loop
+    |  
+    parte_de_declaracoes_opcionais
     {
         printf("\tDSVS ");
         symbol1 = symbol_create_label(write_label());
         printf("\n");
         stack_push(labels, symbol1);
-    }   
+    }
+    |   
     parte_de_declaracao_de_subrotinas_opcional
     {
         symbol1 = stack_pop(labels);
         printf("R%03d:\tNADA\n", symbol1->label);
     }
 
-parte_de_declaracoes_opcionais_loop:
-    parte_de_declaracoes_opcionais
-    | parte_de_declaracoes_opcionais SEMICOLON parte_de_declaracoes_opcionais_loop
-
 parte_de_declaracoes_opcionais:
-    parte_de_declaracao_de_labels_opcional
-    | parte_de_declaracao_de_variaveis_opcional
-
-parte_de_declaracao_de_labels_opcional:
-    | parte_de_declaracao_de_labels
-;
-
-parte_de_declaracao_de_variaveis_opcional:
+    parte_de_declaracao_de_labels
     | parte_de_declaracao_de_variaveis
-;
 
 parte_de_declaracao_de_subrotinas_opcional:
-    | 
     { nl++; offset = 0; }
-    parte_de_declaracao_de_subrotinas
+    declaracao_de_procedimento
     { nl--; }
 ;
 
@@ -209,11 +201,7 @@ parte_de_declaracao_de_variaveis:
         offset = 0;
     }
     declaracao_de_variaveis
-    parte_de_declaracao_de_variaveis_loop
-;
-
-parte_de_declaracao_de_variaveis_loop:
-    {
+        {
         if (aux->size)
             printf("\tAMEM %d\n", aux->size);
 
@@ -223,10 +211,6 @@ parte_de_declaracao_de_variaveis_loop:
             stack_push(ts, symbol1);
         }
     }
-    |
-    SEMICOLON
-    declaracao_de_variaveis
-    parte_de_declaracao_de_variaveis_loop
 ;
 
 declaracao_de_variaveis:
@@ -255,16 +239,6 @@ lista_de_identificadores_loop:
         stack_push(aux, symbol1);
     }
     lista_de_identificadores_loop
-;
-
-parte_de_declaracao_de_subrotinas:
-    declaracao_de_procedimento
-    |
-    declaracao_de_procedimento SEMICOLON parte_de_declaracao_de_subrotinas_loop
-;
-
-parte_de_declaracao_de_subrotinas_loop:
-    | parte_de_declaracao_de_subrotinas
 ;
 
 declaracao_de_procedimento:
@@ -315,12 +289,20 @@ parametros_formais:
 ;
 
 parametros_formais_loop:
+    {
+        if (symbol2 && symbol2->nl == nl)
+            yyerror("Variável já declarada.");
+    }
     | SEMICOLON secao_de_parametros_formais parametros_formais_loop
 ;
 
 secao_de_parametros_formais:
     parameter_type identificador
     {
+        symbol1 = symbol_create(strdup(yytext), nl, offset);
+        offset++;
+        stack_push(aux, symbol1);
+
         symbol1->cat = C_PARAMETER;
         symbol1->passage = P_VALUE;
         stack_push(parameters, symbol1);
@@ -329,8 +311,10 @@ secao_de_parametros_formais:
 
 parameter_type  : tipo 
                 | proc_signature;
+
 proc_signature  : PROCEDURE identificador LPAREN type_list RPAREN
                 | PROCEDURE identificador;
+
 type_list       : parameter_type 
                 | type_list COMMA parameter_type;
 
