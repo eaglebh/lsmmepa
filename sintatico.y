@@ -136,6 +136,33 @@ bloco:
         }
         nl--;
     }
+    |
+    {nl++; }
+    comando_composto
+    {
+        nvars = 0;
+
+        while (symbol1 = stack_first(ts)) {
+            if ((symbol1->cat == C_PROCEDURE || 
+                symbol1->cat == C_FUNCTION) && 
+                    symbol1->nl == nl) {
+                break;
+            }
+            if (symbol1->nl != nl) {
+                break;
+            }
+
+            stack_pop(ts);
+            if (symbol1->cat == C_VARIABLE)
+                nvars++;
+        }
+        if (nvars)
+            printf("\tDMEM %d\n", nvars);
+        if (symbol1) {
+            printf("\tRTPR %d, %d\n", nl, symbol1->nParameter);
+        }
+        nl--;
+    }
 ;
 
 decl_list       : declaracoes_opcionais 
@@ -154,7 +181,8 @@ declaracoes_opcionais:
     parte_de_declaracao_de_subrotinas_opcional
     {
         symbol1 = stack_pop(labels);
-        printf("R%03d:\tNADA\n", symbol1->label);
+        if(symbol1)
+            printf("R%03d:\tNADA\n", symbol1->label);
     }
 
 parte_de_declaracoes_opcionais:
