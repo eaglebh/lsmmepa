@@ -1,0 +1,22 @@
+	INPP
+	AMEM 3
+	DSVS R000
+	CRVL 0, 0 # a
+	CRVL 0, 1 # b
+	CMMA
+	DSVF R001
+	CRVL 0, 0 # a
+	CRVL 0, 1 # b
+	SOMA
+	ARMZ 0, 2 # c
+	DSVS R002
+R001:	NADA
+	CRVL 0, 0 # a
+	CRVL 0, 1 # b
+	CRVL 0, 2 # c
+	MULT
+	SUBT
+	ARMZ 0, 2 # c
+R002:	NADA
+	DMEM 3
+	PARA

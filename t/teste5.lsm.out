@@ -1,0 +1,59 @@
+	INPP
+	AMEM 2
+	DSVS R000
+	AMEM 2
+	DSVS R001
+R002:	ENPR 1
+	AMEM 1
+	DSVS R003
+	AMEM 1
+	DSVS R004
+	CRVL 1, -5 # number
+	ARMZ 0, 1 # divisor
+	ARMZ 0, 1 # prime
+R005:	NADA
+	CRVL 0, 1 # prime
+	CRVL 0, 1 # divisor
+	CONJ
+	CRCT 1
+	CMMA
+	DSVF R006
+	CRVL 1, -5 # number
+	CRVL 0, 1 # divisor
+	DIVI
+	CRCT 0
+	CMIG
+	DSVF R007
+	ARMZ 0, 1 # prime
+	DSVS R008
+R007:	NADA
+	CRVL 0, 1 # divisor
+	CRCT 1
+	SUBT
+	ARMZ 0, 1 # divisor
+R008:	NADA
+	DSVS r05
+R006:	NADA
+	CRVL 0, 1 # prime
+	ARMZ 1, -4 # nofactor
+	DMEM 2
+	RTPR 1, 2
+R004:	NADA
+	LEIT
+	ARMZ 0, 0 # number
+	CRVL 0, 0 # number
+	IMPR
+	CRVL 0, 0 # number
+	CRVL 0, 0 # nofactor
+	CHPR R002, 0
+	CRVL 0, 0 # nofactor
+	ARMZ 0, 1 # prime
+	CRVL 0, 1 # prime
+	DSVF R009
+	IMPR
+	DSVS R010
+R009:	NADA
+	IMPR
+R010:	NADA
+	RTPR 0, 2
+	PARA
