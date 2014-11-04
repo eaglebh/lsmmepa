@@ -3,12 +3,27 @@
 #include "_sintatico.h"
 %}
 
-digit         [0-9]
-letter        [a-zA-Z_]
+DIGIT         [0-9]
+LETTER        [a-zA-Z_]
+DISCARD [\t \n]+
 PRINTED '[^'\n]*'
 
 %%
-
+{DISCARD}
+"program"            { return PROGRAM;   }
+"declare"            { return DECLARE;   }
+"end"                { return END;       }
+"procedure"          { return PROCEDURE; }
+"if"                 { return IF;        }
+"then"               { return THEN;      }
+"else"               { return ELSE;      }
+"while"              { return WHILE;     }
+"do"                 { return DO;        }
+"integer"			 { return INTEGER;   } 
+"real" 				 { return REAL; 	 } 
+"boolean" 			 { return BOOLEAN;   } 
+"char" 				 { return CHAR; 	 }
+"label"              { return LABEL;     }
 "+"                  { return PLUS;      }
 "-"                  { return MINUS;     }
 "*"                  { return TIMES;     }
@@ -16,9 +31,8 @@ PRINTED '[^'\n]*'
 ")"                  { return RPAREN;    }
 ";"                  { return SEMICOLON; }
 ","                  { return COMMA;     }
-".."                 { return PERIOD2;   }
-"."                  { return PERIOD;    }
-":="                 { return BECOMES;   }
+"."                  { return DOT;       }
+":="                 { return ASSIGNOP;  }
 ":"                  { return COLON;     }
 "="                  { return EQL;       }
 "!="                 { return NEQ;       }
@@ -35,38 +49,18 @@ PRINTED '[^'\n]*'
 "goto"               { return GOTO;      }
 "of"                 { return OF;        }
 "array"              { return ARRAY;     }
-"program"            { return PROGRAM;   }
-"declare"            { return DECLARE;   }
-"begin"              { return T_BEGIN;   }
-"end"                { return END;       }
-"function"           { return FUNCTION;  }
-"procedure"          { return PROCEDURE; }
-"if"                 { return IF;        }
-"then"               { return THEN;      }
-"else"               { return ELSE;      }
-"while"              { return WHILE;     }
-"do"                 { return DO;        }
-"label"              { return LABEL;     }
-"type"               { return TYPE;      }
 "write"              { return WRITE;     }
 "read"               { return READ;      }
-"call"               { return CALL;      }
 "false"              { return FALSE;     }
 "true"               { return TRUE;      }
 
-{digit}+             { return NUMBER;    }
+{DIGIT}+             { return NUMBER;    }
 
 {PRINTED} 			 { return STRING;    }
 
-{letter}({letter}|{digit})* { return IDENT; }
+{LETTER}({LETTER}|{DIGIT})* { return IDENT; }
 
-\(\*[^\*][^\)]*\*\) { printf("Comentário: \"%s\"\n", yytext); }
-
-[ \t\n]+
-
-
-
-.                   { printf("Inválido: \"%s\"\n", yytext); }
+.                   { printf("Inválido: \"%s\"\n", yytext); return UNKNOWN; }
 
 %%
 

@@ -20,7 +20,6 @@ t_symbol *symbol1 = NULL;
 t_symbol *symbol2 = NULL;
 t_symbol *symb_atr = NULL;
 t_symbol *symb_proc = NULL;
-t_symbol *symb_func = NULL;
 
 int nl = -1;
 int offset = 0;
@@ -29,9 +28,24 @@ int nparam;        // Número do parâmetro
 int label = 0;
 int write = 0;  // Variável condicional para indicar o uso de write()
 
+int deb_line = 0;
+
+#define gen_code(...) { deb_line = __LINE__; pgen_code(__VA_ARGS__); }
+
+void pgen_code(const char * format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start (args, format);
+    vsprintf (buffer,format, args);
+    va_end (args);
+
+    //printf ("%d %s",deb_line, buffer);
+    printf ("%s", buffer);
+}
+
 int write_label(void) {
     int l = label;
-    printf("R%03d", label);
+    gen_code("R%03d", label);
     label++;
     return l;
 }
@@ -39,63 +53,23 @@ int write_label(void) {
 
 %define parse.error verbose
 
-%token PLUS;
-%token MINUS;
-%token TIMES;
-%token SLASH;
-%token LPAREN;
-%token RPAREN;
-%token SEMICOLON;
-%token COMMA;
-%token PERIOD;
-%token BECOMES;
-%token COLON;
-%token EQL;
-%token NEQ;
-%token LSS;
-%token GTR;
-%token LEQ;
-%token GEQ;
-%token AND;
-%token DIV;
-%token OR;
-%token NOT;
-%token PERIOD2;
-%token LBRACKET;
-%token RBRACKET;
-%token ARRAY
-%token OF;
-%token GOTO;
-%token PROGRAM;
-%token DECLARE;
-%token T_BEGIN;
-%token END;
-%token FUNCTION;
-%token PROCEDURE;
-%token IF;
-%token THEN;
-%token ELSE;
-%token WHILE;
-%token DO;
-%token LABEL;
-%token TYPE;
-%token WRITE;
-%token READ;
-%token CALL;
-%token IDENT;
-%token NUMBER;
-%token TRUE;
-%token FALSE;
-%token STRING;
+%start program
+%token PLUS MINUS TIMES SLASH LPAREN RPAREN SEMICOLON COMMA DOT;
+%token ASSIGNOP COLON EQL NEQ LSS GTR LEQ GEQ AND DIV OR NOT;
+%token LBRACKET RBRACKET ARRAY OF GOTO PROGRAM DECLARE END;
+%token PROCEDURE IF THEN ELSE WHILE DO;
+%token TYPE WRITE READ IDENT;
+%token NUMBER TRUE FALSE STRING UNKNOWN;
+%token INTEGER REAL BOOLEAN CHAR LABEL;
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
 %%
 
-programa:
+program:
     PROGRAM
     {
-        printf("\tINPP\n");
+        gen_code("\tINPP\n");
     }
     identificador
     {
@@ -103,7 +77,7 @@ programa:
     }
     bloco
     {
-        printf("\tPARA\n");
+        gen_code("\tPARA\n");
     }
 ;
 
@@ -116,9 +90,7 @@ bloco:
         nvars = 0;
 
         while (symbol1 = stack_first(ts)) {
-            if ((symbol1->cat == C_PROCEDURE || 
-                symbol1->cat == C_FUNCTION) && 
-                    symbol1->nl == nl) {
+            if (symbol1->cat == C_PROCEDURE && symbol1->nl == nl) {
                 break;
             }
             if (symbol1->nl != nl) {
@@ -130,9 +102,9 @@ bloco:
                 nvars++;
         }
         if (nvars)
-            printf("\tDMEM %d\n", nvars);
+            gen_code("\tDMEM %d\n", nvars);
         if (symbol1) {
-            printf("\tRTPR %d, %d\n", nl, symbol1->nParameter);
+            gen_code("\tRTPR %d, %d\n", nl, symbol1->nParameter);
         }
         nl--;
     }
@@ -143,9 +115,7 @@ bloco:
         nvars = 0;
 
         while (symbol1 = stack_first(ts)) {
-            if ((symbol1->cat == C_PROCEDURE || 
-                symbol1->cat == C_FUNCTION) && 
-                    symbol1->nl == nl) {
+            if (symbol1->cat == C_PROCEDURE && symbol1->nl == nl) {
                 break;
             }
             if (symbol1->nl != nl) {
@@ -157,9 +127,9 @@ bloco:
                 nvars++;
         }
         if (nvars)
-            printf("\tDMEM %d\n", nvars);
+            gen_code("\tDMEM %d\n", nvars);
         if (symbol1) {
-            printf("\tRTPR %d, %d\n", nl, symbol1->nParameter);
+            gen_code("\tRTPR %d, %d\n", nl, symbol1->nParameter);
         }
         nl--;
     }
@@ -172,9 +142,9 @@ declaracoes_opcionais:
     |  
     parte_de_declaracoes_opcionais
     {
-        printf("\tDSVS ");
+        gen_code("\tDSVS ");
         symbol1 = symbol_create_label(write_label());
-        printf("\n");
+        gen_code("\n");
         stack_push(labels, symbol1);
     }
     |   
@@ -182,7 +152,7 @@ declaracoes_opcionais:
     {
         symbol1 = stack_pop(labels);
         if(symbol1)
-            printf("R%03d:\tNADA\n", symbol1->label);
+            gen_code("R%03d:\tNADA\n", symbol1->label);
     }
 
 parte_de_declaracoes_opcionais:
@@ -218,10 +188,17 @@ parte_de_declaracao_de_labels_loop:
     parte_de_declaracao_de_labels_loop
 ;
 
-tipo:
-    identificador
-    | ARRAY numero OF tipo
+tipo            : simple_type
+                | array_type
 ;
+
+array_type      : ARRAY numero OF simple_type;
+
+simple_type     : INTEGER
+                | REAL
+                | BOOLEAN
+                | CHAR
+                | LABEL;
 
 parte_de_declaracao_de_variaveis:
     {
@@ -231,7 +208,7 @@ parte_de_declaracao_de_variaveis:
     declaracao_de_variaveis
         {
         if (aux->size)
-            printf("\tAMEM %d\n", aux->size);
+            gen_code("\tAMEM %d\n", aux->size);
 
         nvars = aux->size;
         while (symbol1 = stack_pop(aux)) {
@@ -273,7 +250,7 @@ declaracao_de_procedimento:
     PROCEDURE
     {
         write_label();
-        printf(":\tENPR %d\n", nl);
+        gen_code(":\tENPR %d\n", nl);
     }
     identificador
     {
@@ -359,10 +336,11 @@ comando:
     {
 //        symbol1 = stack_find(ts, yytext);
         symbol1->nl = nl;
-        if (symbol1)
-            printf("R%03d:\tENRT %d %d\n", symbol1->label, nl, nvars);
-        else
+        if (symbol1) {
+            gen_code("R%03d:\tENRT %d %d\n", symbol1->label, nl, nvars);
+        } else {
             yyerror("label não declarado.\n");
+        }
     }
     COLON comando_sem_label
     | comando_sem_label
@@ -397,16 +375,16 @@ comando_leitura:
 
 comando_leitura_1:
     {
-        printf("\tLEIT\n");
+        gen_code("\tLEIT\n");
     }
     variavel
     {
         if (!symbol1)
             yyerror("variavel nao declarada.");
-        if (symbol1->cat == C_PARAMETER && symbol1->passage == P_ADDRESS)
-            printf("\tARMI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-        else
-            printf("\tARMZ %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+        if (symbol1->cat == C_PARAMETER && symbol1->passage == P_ADDRESS) {
+            gen_code("\tARMI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+        } else
+            gen_code("\tARMZ %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
     }
     comando_leitura_2
 ;
@@ -420,15 +398,15 @@ atribuicao:
     {
         symb_atr = symbol_cpy(symb_atr, symbol1);
     }
-    BECOMES expressao
+    ASSIGNOP expressao
     {
         if (!symb_atr)
             yyerror("variavel nao declarada.");
 
-        if (symb_atr->cat == C_PARAMETER && symb_atr->passage == P_ADDRESS)
-            printf("\tARMI %d, %d # %s\n", symb_atr->nl, symb_atr->offset, symb_atr->id);
-        else
-            printf("\tARMZ %d, %d # %s\n", symb_atr->nl, symb_atr->offset, symb_atr->id);
+        if (symb_atr->cat == C_PARAMETER && symb_atr->passage == P_ADDRESS) {
+            gen_code("\tARMI %d, %d # %s\n", symb_atr->nl, symb_atr->offset, symb_atr->id);
+        } else
+            gen_code("\tARMZ %d, %d # %s\n", symb_atr->nl, symb_atr->offset, symb_atr->id);
     }
 ;
 
@@ -443,7 +421,7 @@ chamada_de_procedimento:
     }
     lista_de_expressoes_opcional
     {
-        printf("\tCHPR R%03d, %d\n", symb_proc->label, nl);
+        gen_code("\tCHPR R%03d, %d\n", symb_proc->label, nl);
         symb_proc = NULL;
     }
 ;
@@ -457,10 +435,11 @@ desvio:
     {
         //symbol1 = stack_find(ts, yytext);
 
-        if (symbol1)
-            printf("\tDSVR r%02d, %d, %d\n", symbol1->label, symbol1->nl, nl);
-        else
+        if (symbol1) {
+            gen_code("\tDSVR r%02d, %d, %d\n", symbol1->label, symbol1->nl, nl);
+        } else {
             yyerror("label não declarado.\n");
+        }
     }
 ;
 
@@ -468,25 +447,25 @@ comando_condicional:
     IF expressao
     {
         symbol1 = symbol_create("", 0, 0);
-        printf("\tDSVF ");
+        gen_code("\tDSVF ");
         symbol1->label = write_label();
-        printf("\n");
+        gen_code("\n");
         stack_push(labels, symbol1);
     }
     THEN comando_sem_label
     {
         symbol1 = symbol_create("", 0, 0);
-        printf("\tDSVS ");
+        gen_code("\tDSVS ");
         symbol1->label = write_label();
-        printf("\n");
+        gen_code("\n");
         symbol2 = stack_pop(labels);
-        printf("R%03d:\tNADA\n", symbol2->label);
+        gen_code("R%03d:\tNADA\n", symbol2->label);
         stack_push(labels, symbol1);
     }
     comando_condicional_else
     {
         symbol1 = stack_pop(labels);
-        printf("R%03d:\tNADA\n", symbol1->label);
+        gen_code("R%03d:\tNADA\n", symbol1->label);
     }
     END
 ;
@@ -501,23 +480,23 @@ comando_repetitivo:
     {
         symbol1 = symbol_create("", 0, 0);
         symbol1->label = write_label();
-        printf(":\tNADA\n");
+        gen_code(":\tNADA\n");
         stack_push(labels, symbol1);
     }
     expressao
     {
         symbol1 = symbol_create("", 0, 0);
-        printf("\tDSVF ");
+        gen_code("\tDSVF ");
         symbol1->label = write_label();
-        printf("\n");
+        gen_code("\n");
         stack_push(labels, symbol1);
     }
     DO comando_sem_label
     {
         symbol1 = stack_pop(labels);
         symbol2 = stack_pop(labels);
-        printf("\tDSVS r%02d\n", symbol2->label);
-        printf("R%03d:\tNADA\n", symbol1->label);
+        gen_code("\tDSVS r%02d\n", symbol2->label);
+        gen_code("R%03d:\tNADA\n", symbol1->label);
     }
     END
 ;
@@ -526,7 +505,7 @@ lista_de_expressoes:
     expressao
     {
         if (write)
-            printf("\tIMPR\n");
+            gen_code("\tIMPR\n");
     }
     lista_de_expressoes_loop
 ;
@@ -535,31 +514,31 @@ lista_de_expressoes_loop:
     | COMMA expressao
     {
         if ( write )
-            printf("\tIMPR\n");
+            gen_code("\tIMPR\n");
     }
     lista_de_expressoes_loop
 ;
 
 expressao:
     expressao_simples
-    | expressao_simples EQL expressao_simples { printf("\tCMIG\n"); }
-    | expressao_simples NEQ expressao_simples { printf("\tCMDG\n"); }
-    | expressao_simples LSS expressao_simples { printf("\tCMME\n"); }
-    | expressao_simples GTR expressao_simples { printf("\tCMMA\n"); }
-    | expressao_simples LEQ expressao_simples { printf("\tCMEG\n"); }
-    | expressao_simples GEQ expressao_simples { printf("\tCMAG\n"); }
+    | expressao_simples EQL expressao_simples { gen_code("\tCMIG\n"); }
+    | expressao_simples NEQ expressao_simples { gen_code("\tCMDG\n"); }
+    | expressao_simples LSS expressao_simples { gen_code("\tCMME\n"); }
+    | expressao_simples GTR expressao_simples { gen_code("\tCMMA\n"); }
+    | expressao_simples LEQ expressao_simples { gen_code("\tCMEG\n"); }
+    | expressao_simples GEQ expressao_simples { gen_code("\tCMAG\n"); }
 ;
 
 expressao_simples:
     termo expressao_simples_loop
     | PLUS  termo expressao_simples_loop
-    | MINUS termo { printf("\tINVR\n"); } expressao_simples_loop
+    | MINUS termo { gen_code("\tINVR\n"); } expressao_simples_loop
 ;
 
 expressao_simples_loop:
-    | PLUS  termo { printf("\tSOMA\n"); } expressao_simples_loop
-    | MINUS termo { printf("\tSUBT\n"); } expressao_simples_loop
-    | OR     termo { printf("\tDISJ\n"); } expressao_simples_loop
+    | PLUS  termo { gen_code("\tSOMA\n"); } expressao_simples_loop
+    | MINUS termo { gen_code("\tSUBT\n"); } expressao_simples_loop
+    | OR     termo { gen_code("\tDISJ\n"); } expressao_simples_loop
 ;
 
 termo:
@@ -567,9 +546,9 @@ termo:
 ;
 
 termo_loop:
-    | TIMES fator { printf("\tMULT\n"); } termo_loop
-    | DIV    fator { printf("\tDIVI\n"); } termo_loop
-    | AND    fator { printf("\tCONJ\n"); } termo_loop
+    | TIMES fator { gen_code("\tMULT\n"); } termo_loop
+    | DIV    fator { gen_code("\tDIVI\n"); } termo_loop
+    | AND    fator { gen_code("\tCONJ\n"); } termo_loop
 ;
 
 fator:
@@ -583,33 +562,31 @@ fator:
             yyerror("procedimento %s chamado com número inválido de parâmetros %d de %d.", symb_proc->id, nparam, symb_proc->nParameter);
 
         if (symb_proc && symb_proc->parameters[nparam] == P_ADDRESS) {
-            if (symbol1->cat == C_VARIABLE)
-                printf("\tCREN %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-            else if (symbol1->cat == C_PARAMETER) {
-                if (symbol1->passage == P_VALUE)
-                    printf("\tCREN %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-                else if (symbol1->passage == P_ADDRESS)
-                    printf("\tCRVL %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-            }
-            nparam++;
-        } else if (symb_func && symb_func->parameters[nparam] == P_ADDRESS) {
-            if (symbol1->cat == C_VARIABLE)
-                printf("\tCREN %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-            else if (symbol1->cat == C_PARAMETER) {
-                if (symbol1->passage == P_VALUE)
-                    printf("\tCREN %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-                else if (symbol1->passage == P_ADDRESS)
-                    printf("\tCRVL %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+            if (symbol1->cat == C_VARIABLE) {
+                gen_code("\tCREN %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+            }else if (symbol1->cat == C_PARAMETER) {
+                if (symbol1->passage == P_VALUE) {
+                    gen_code("\tCREN %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+                } else { 
+                    if (symbol1->passage == P_ADDRESS) {
+                        gen_code("\tCRVL %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+                    }
+                }
             }
             nparam++;
         } else {
-            if (symbol1->cat == C_VARIABLE)
-                printf("\tCRVL %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-            else if (symbol1->cat == C_PARAMETER) {
-                if (symbol1->passage == P_VALUE)
-                    printf("\tCRVL %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-                else if (symbol1->passage == P_ADDRESS)
-                    printf("\tCRVI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+            if (symbol1->cat == C_VARIABLE){
+                gen_code("\tCRVL %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+            } else {
+                if (symbol1->cat == C_PARAMETER) {
+                    if (symbol1->passage == P_VALUE){
+                        gen_code("\tCRVL %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+                    } else {
+                        if (symbol1->passage == P_ADDRESS) {
+                            gen_code("\tCRVI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+                        }
+                    }
+                }
             }
         }
     }
@@ -620,37 +597,16 @@ fator:
         if (symb_proc && nparam >= symb_proc->nParameter)
             yyerror("procedimento chamado com número inválido de parâmetros.");
 
-        printf("\tCRCT %s\n", yytext);
+        gen_code("\tCRCT %s\n", yytext);
     }
     | TRUE | FALSE | STRING
     //%prec LOWER_THAN_LPAREN
-    | chamada_de_funcao
     | LPAREN expressao RPAREN
-    | NOT fator { printf("\tNEGA\n"); }
+    | NOT fator { gen_code("\tNEGA\n"); }
 ;
 
 variavel:
     identificador
-;
-
-chamada_de_funcao:
-    CALL
-    {
-        printf("\tAMEM 1\n");
-    }
-    identificador
-    {
-        if (!symbol1)
-            yyerror("procedimento não declarado");
-        
-        symb_func = symbol_cpy(symb_func, symbol1);
-        nparam = 0;
-    }
-    lista_de_expressoes_opcional
-    {
-        printf("\tCHPR R%03d, %d\n", symb_func->label, nl);
-        symb_func = NULL;
-    }
 ;
 
 numero:
@@ -686,13 +642,14 @@ int main(int argc, char *argv[]) {
     labels = stack_create();
 
     if (argc > 1)
-      stdin = fopen(argv[1], "r");
+        stdin = fopen(argv[1], "r");
 
-    if (stdin)
-      yyparse();
-    else
-      printf("Erro de leitura no arquivo de entrada ou arquivo inexistente\n");
+    if (stdin) {
+        yyparse();
+    } else {
+        printf("Erro de leitura no arquivo de entrada ou arquivo inexistente\n");
+    }
 
     if (argc > 1 && stdin)
-      fclose(stdin);
+        fclose(stdin);
 }
