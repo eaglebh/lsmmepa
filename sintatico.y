@@ -146,7 +146,10 @@ decl_list   : decl
             | decl_list SEMICOLON decl ;
 
 decl        :
-            |  
+            {
+                while (symbol1 = stack_pop(aux));
+                offset = 0;
+            } 
             variable_decl
             {
                 gen_code("\tDSVS ");
@@ -168,8 +171,8 @@ parte_de_declaracao_de_subrotinas_opcional:
     { nl--; }
 ;
 
-tipo            : simple_type
-                | array_type
+type            : { is_label = 0; } simple_type
+                | { is_label = 0; } array_type
 ;
 
 array_type      : ARRAY numero OF simple_type;
@@ -178,14 +181,10 @@ simple_type     : INTEGER
                 | REAL
                 | BOOLEAN
                 | CHAR
-                | { is_label = 1; } LABEL { is_label = 0; };
+                | { is_label = 1; } LABEL ;
 
 variable_decl:    
-    {
-        while (symbol1 = stack_pop(aux));
-        offset = 0;
-    } 
-    tipo ident_list 
+    type ident_list 
     {
         if (aux->size)
             gen_code("\tAMEM %d\n", aux->size);
@@ -235,7 +234,13 @@ ident_list:
         }
 ;
 
-proc_decl:
+proc_decl   : proc_header
+            {nl--;}
+            block_stmt
+            {nl++;}
+;
+
+proc_header: 
     PROCEDURE
     {
         write_label();
@@ -269,17 +274,20 @@ proc_decl:
         symb_proc = NULL;
         offset = 0;
     }
-    {nl--;}
-    block_stmt
-    {nl++;}
-;
+
+/*proc_header     : PROCEDURE  identifier  
+                | PROCEDURE identifier OPEN_PARENS formal_list CLOSE_PARENS ;
+
+formal_list     : parameter_decl  
+                | formal_list SEMI_COLON parameter_decl ;
+*/
 
 parametros_formais_opcional:
-    | parametros_formais
+    | formal_list
 ;
 
-parametros_formais:
-    LPAREN secao_de_parametros_formais parametros_formais_loop RPAREN
+formal_list:
+    LPAREN parameter_decl parametros_formais_loop RPAREN
 ;
 
 parametros_formais_loop:
@@ -287,10 +295,10 @@ parametros_formais_loop:
         if (symbol2 && symbol2->nl == nl)
             yyerror("Variável já declarada.");
     }
-    | SEMICOLON secao_de_parametros_formais parametros_formais_loop
+    | SEMICOLON parameter_decl parametros_formais_loop
 ;
 
-secao_de_parametros_formais:
+parameter_decl:
     parameter_type identifier
     {
         symbol1 = symbol_create(strdup(yytext), nl, offset);
@@ -303,7 +311,7 @@ secao_de_parametros_formais:
     }
 ;
 
-parameter_type  : tipo 
+parameter_type  : type 
                 | proc_signature ;
 
 proc_signature  : PROCEDURE identifier LPAREN type_list RPAREN
