@@ -15,7 +15,7 @@ OUTFILES=${OUTPUT_LEX_C} ${OUTPUT_SYN_C}
 CFILES=${LIB_C_FILES} ${OUTFILES}
 
 all:
-	bison -y -d -o ${OUTPUT_SYN_C} ${INPUT_SYN}
+	bison -v -t -y -d -o ${OUTPUT_SYN_C} ${INPUT_SYN}
 	flex --outfile ${OUTPUT_LEX_C} ${INPUT_LEX}
 	${CC} ${CFILES} -o ${EXEC} ${CFLAGS}
 	chmod a+x ${EXEC}

@@ -27,6 +27,7 @@ int nvars;        // Número de variáveis locais
 int nparam;        // Número do parâmetro
 int label = 0;
 int write = 0;  // Variável condicional para indicar o uso de write()
+int is_label = 0;
 
 int deb_line = 0;
 
@@ -57,7 +58,7 @@ int write_label(void) {
 %token PLUS MINUS TIMES SLASH LPAREN RPAREN SEMICOLON COMMA DOT;
 %token ASSIGNOP COLON EQL NEQ LSS GTR LEQ GEQ AND DIV OR NOT;
 %token LBRACKET RBRACKET ARRAY OF GOTO PROGRAM DECLARE END;
-%token PROCEDURE IF THEN ELSE WHILE DO;
+%token PROCEDURE IF THEN ELSE UNTIL WHILE DO;
 %token TYPE WRITE READ IDENT;
 %token NUMBER TRUE FALSE STRING UNKNOWN;
 %token INTEGER REAL BOOLEAN CHAR LABEL;
@@ -71,21 +72,24 @@ program:
     {
         gen_code("\tINPP\n");
     }
-    identificador
+    identifier
     {
         symbol1 = symbol_create(strdup(yytext), nl, offset); stack_push(aux, symbol1);
     }
-    bloco
+    proc_body
     {
         gen_code("\tPARA\n");
     }
 ;
 
-bloco:
+proc_body       : block_stmt ;
+
+block_stmt:
     {nl++; }
     DECLARE
-    decl_list    
-    comando_composto
+    decl_list
+    DO
+    stmt_list
     {
         nvars = 0;
 
@@ -108,9 +112,11 @@ bloco:
         }
         nl--;
     }
+    END
     |
     {nl++; }
-    comando_composto
+    DO
+    stmt_list
     {
         nvars = 0;
 
@@ -133,59 +139,33 @@ bloco:
         }
         nl--;
     }
+    END
 ;
 
-decl_list       : declaracoes_opcionais 
-                | decl_list SEMICOLON declaracoes_opcionais ;
+decl_list   : decl 
+            | decl_list SEMICOLON decl ;
 
-declaracoes_opcionais:
-    |  
-    parte_de_declaracoes_opcionais
-    {
-        gen_code("\tDSVS ");
-        symbol1 = symbol_create_label(write_label());
-        gen_code("\n");
-        stack_push(labels, symbol1);
-    }
-    |   
-    parte_de_declaracao_de_subrotinas_opcional
-    {
-        symbol1 = stack_pop(labels);
-        if(symbol1)
-            gen_code("R%03d:\tNADA\n", symbol1->label);
-    }
-
-parte_de_declaracoes_opcionais:
-    parte_de_declaracao_de_labels
-    | parte_de_declaracao_de_variaveis
+decl        :
+            |  
+            variable_decl
+            {
+                gen_code("\tDSVS ");
+                symbol1 = symbol_create_label(write_label());
+                gen_code("\n");
+                stack_push(labels, symbol1);
+            }
+            |   
+            parte_de_declaracao_de_subrotinas_opcional
+            {
+                symbol1 = stack_pop(labels);
+                if(symbol1)
+                    gen_code("R%03d:\tNADA\n", symbol1->label);
+            }
 
 parte_de_declaracao_de_subrotinas_opcional:
     { nl++; offset = 0; }
-    declaracao_de_procedimento
+    proc_decl
     { nl--; }
-;
-
-parte_de_declaracao_de_labels:
-    LABEL
-    identificador
-    {
-        symbol1 = symbol_create_label(label);
-        label++;
-        strcpy(symbol1->id, strdup(yytext));
-        stack_push(ts, symbol1);
-    }
-    parte_de_declaracao_de_labels_loop    
-;
-
-parte_de_declaracao_de_labels_loop:
-    | COMMA    identificador
-    {
-        symbol1 = symbol_create_label(label);
-        label++;
-        strcpy(symbol1->id, strdup(yytext));
-        stack_push(ts, symbol1);
-    }
-    parte_de_declaracao_de_labels_loop
 ;
 
 tipo            : simple_type
@@ -198,15 +178,15 @@ simple_type     : INTEGER
                 | REAL
                 | BOOLEAN
                 | CHAR
-                | LABEL;
+                | { is_label = 1; } LABEL { is_label = 0; };
 
-parte_de_declaracao_de_variaveis:
+variable_decl:    
     {
         while (symbol1 = stack_pop(aux));
         offset = 0;
-    }
-    declaracao_de_variaveis
-        {
+    } 
+    tipo ident_list 
+    {
         if (aux->size)
             gen_code("\tAMEM %d\n", aux->size);
 
@@ -216,43 +196,52 @@ parte_de_declaracao_de_variaveis:
             stack_push(ts, symbol1);
         }
     }
-;
+    ;
 
-declaracao_de_variaveis:
-    tipo lista_de_identificadores
-;
-
-lista_de_identificadores:
-    identificador
+ident_list:
+    identifier
     {
-        symbol1 = symbol_create(strdup(yytext), nl, offset);
-        offset++;
-        stack_push(aux, symbol1);
+        if (symbol2 && symbol2->nl == nl) {
+            yyerror("Variável já declarada.");
+        }
+
+        if (is_label) {
+            symbol1 = symbol_create_label(label);
+            label++;
+            strcpy(symbol1->id, strdup(yytext));
+            stack_push(ts, symbol1);
+        } else {
+            symbol1 = symbol_create(strdup(yytext), nl, offset);
+            offset++;
+            stack_push(aux, symbol1);
+        }
     }
-    lista_de_identificadores_loop
+    | ident_list COMMA 
+        identifier 
+        {
+            if (symbol2 && symbol2->nl == nl)
+                yyerror("Variável já declarada.");
+
+            if (is_label) {
+                symbol1 = symbol_create_label(label);
+                label++;
+                strcpy(symbol1->id, strdup(yytext));
+                stack_push(ts, symbol1);
+            } else {
+                symbol1 = symbol_create(strdup(yytext), nl, offset);
+                offset++;
+                stack_push(aux, symbol1);
+            }
+        }
 ;
 
-lista_de_identificadores_loop:
-    {
-          if (symbol2 && symbol2->nl == nl)
-              yyerror("Variável já declarada.");
-    }
-    |COMMA identificador
-    {
-        symbol1 = symbol_create(strdup(yytext), nl, offset);
-        offset++;
-        stack_push(aux, symbol1);
-    }
-    lista_de_identificadores_loop
-;
-
-declaracao_de_procedimento:
+proc_decl:
     PROCEDURE
     {
         write_label();
         gen_code(":\tENPR %d\n", nl);
     }
-    identificador
+    identifier
     {
         if (symbol1 && symbol1->nl == nl)
              yyerror("Procedimento já declarado.");
@@ -281,7 +270,7 @@ declaracao_de_procedimento:
         offset = 0;
     }
     {nl--;}
-    bloco
+    block_stmt
     {nl++;}
 ;
 
@@ -302,7 +291,7 @@ parametros_formais_loop:
 ;
 
 secao_de_parametros_formais:
-    parameter_type identificador
+    parameter_type identifier
     {
         symbol1 = symbol_create(strdup(yytext), nl, offset);
         offset++;
@@ -315,24 +304,19 @@ secao_de_parametros_formais:
 ;
 
 parameter_type  : tipo 
-                | proc_signature;
+                | proc_signature ;
 
-proc_signature  : PROCEDURE identificador LPAREN type_list RPAREN
-                | PROCEDURE identificador;
+proc_signature  : PROCEDURE identifier LPAREN type_list RPAREN
+                | PROCEDURE identifier ;
 
 type_list       : parameter_type 
-                | type_list COMMA parameter_type;
+                | type_list COMMA parameter_type ;
 
-comando_composto:
-    DO comando comando_composto_loop END
-;
+stmt_list:      stmt
+                | stmt_list SEMICOLON stmt ;
 
-comando_composto_loop:
-    | SEMICOLON comando comando_composto_loop
-;
-
-comando:
-    identificador
+stmt:
+    identifier
     {
 //        symbol1 = stack_find(ts, yytext);
         symbol1->nl = nl;
@@ -342,66 +326,29 @@ comando:
             yyerror("label não declarado.\n");
         }
     }
-    COLON comando_sem_label
-    | comando_sem_label
+    COLON unlabelled_stmt
+    | unlabelled_stmt
 ;
 
-comando_sem_label:
-    atribuicao
-    | chamada_de_procedimento
-    | desvio
-    | comando_composto
-    | comando_condicional
-    | comando_repetitivo
-    | comando_escrita
-    | comando_leitura
-    | bloco
+unlabelled_stmt:assign_stmt
+                | if_stmt
+                | loop_stmt
+                | read_stmt
+                | write_stmt
+                | goto_stmt
+                | proc_stmt
+                | block_stmt
 ;
 
-comando_escrita:
-    WRITE
-    {
-        write = 1;
-    }
-    LPAREN lista_de_expressoes RPAREN
-    {
-        write = 0;
-    }
-;
-
-comando_leitura:
-    READ LPAREN comando_leitura_1 RPAREN
-;
-
-comando_leitura_1:
-    {
-        gen_code("\tLEIT\n");
-    }
-    variavel
-    {
-        if (!symbol1)
-            yyerror("variavel nao declarada.");
-        if (symbol1->cat == C_PARAMETER && symbol1->passage == P_ADDRESS) {
-            gen_code("\tARMI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-        } else
-            gen_code("\tARMZ %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-    }
-    comando_leitura_2
-;
-
-comando_leitura_2:
-    | COMMA comando_leitura_1
-;
-
-atribuicao:
-    variavel
+assign_stmt:
+    variable
     {
         symb_atr = symbol_cpy(symb_atr, symbol1);
     }
-    ASSIGNOP expressao
+    ASSIGNOP expression
     {
         if (!symb_atr)
-            yyerror("variavel nao declarada.");
+            yyerror("variable nao declarada.");
 
         if (symb_atr->cat == C_PARAMETER && symb_atr->passage == P_ADDRESS) {
             gen_code("\tARMI %d, %d # %s\n", symb_atr->nl, symb_atr->offset, symb_atr->id);
@@ -410,49 +357,15 @@ atribuicao:
     }
 ;
 
-chamada_de_procedimento:
-    identificador
-    {
-        if (!symbol1)
-            yyerror("procedimento não declarado");
-
-        symb_proc = symbol_cpy(symb_proc, symbol1);
-        nparam = 0;
-    }
-    lista_de_expressoes_opcional
-    {
-        gen_code("\tCHPR R%03d, %d\n", symb_proc->label, nl);
-        symb_proc = NULL;
-    }
+variable:
+    identifier
 ;
 
-lista_de_expressoes_opcional:
-    | LPAREN lista_de_expressoes RPAREN
-;
+//array_element   : identifier OPEN_BRACK expression CLOSE_BRACK ;
 
-desvio:
-    GOTO identificador
-    {
-        //symbol1 = stack_find(ts, yytext);
-
-        if (symbol1) {
-            gen_code("\tDSVR r%02d, %d, %d\n", symbol1->label, symbol1->nl, nl);
-        } else {
-            yyerror("label não declarado.\n");
-        }
-    }
-;
-
-comando_condicional:
-    IF expressao
-    {
-        symbol1 = symbol_create("", 0, 0);
-        gen_code("\tDSVF ");
-        symbol1->label = write_label();
-        gen_code("\n");
-        stack_push(labels, symbol1);
-    }
-    THEN comando_sem_label
+if_stmt:
+    IF condition
+    THEN unlabelled_stmt
     {
         symbol1 = symbol_create("", 0, 0);
         gen_code("\tDSVS ");
@@ -470,39 +383,111 @@ comando_condicional:
     END
 ;
 
-comando_condicional_else:
-    %prec LOWER_THAN_ELSE
-    | ELSE comando_sem_label
-;
-
-comando_repetitivo:
-    WHILE
-    {
-        symbol1 = symbol_create("", 0, 0);
-        symbol1->label = write_label();
-        gen_code(":\tNADA\n");
-        stack_push(labels, symbol1);
-    }
-    expressao
+condition       : 
+expression 
     {
         symbol1 = symbol_create("", 0, 0);
         gen_code("\tDSVF ");
         symbol1->label = write_label();
         gen_code("\n");
         stack_push(labels, symbol1);
-    }
-    DO comando_sem_label
+    };
+
+loop_stmt       : 
+    {
+        symbol1 = symbol_create("", 0, 0);
+        symbol1->label = write_label();
+        gen_code(":\tNADA\n");
+        stack_push(labels, symbol1);
+    } 
+    stmt_prefix 
+    stmt_list 
     {
         symbol1 = stack_pop(labels);
         symbol2 = stack_pop(labels);
         gen_code("\tDSVS r%02d\n", symbol2->label);
         gen_code("R%03d:\tNADA\n", symbol1->label);
+    } 
+    stmt_suffix;
+
+stmt_prefix     : WHILE condition DO 
+                | DO;
+stmt_suffix     : UNTIL condition 
+                | END;
+
+read_stmt:      READ LPAREN comando_leitura_1 RPAREN ;
+
+write_stmt:
+    WRITE
+    {
+        write = 1;
     }
-    END
+    LPAREN expr_list RPAREN
+    {
+        write = 0;
+    }
 ;
 
-lista_de_expressoes:
-    expressao
+comando_leitura_1:
+    {
+        gen_code("\tLEIT\n");
+    }
+    variable
+    {
+        if (!symbol1)
+            yyerror("variable nao declarada.");
+        if (symbol1->cat == C_PARAMETER && symbol1->passage == P_ADDRESS) {
+            gen_code("\tARMI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+        } else
+            gen_code("\tARMZ %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+    }
+    comando_leitura_2
+;
+
+comando_leitura_2:
+    | COMMA comando_leitura_1
+;
+
+proc_stmt:
+    identifier
+    {
+        if (!symbol1)
+            yyerror("procedimento não declarado");
+
+        symb_proc = symbol_cpy(symb_proc, symbol1);
+        nparam = 0;
+    }
+    lista_de_expressoes_opcional
+    {
+        gen_code("\tCHPR R%03d, %d\n", symb_proc->label, nl);
+        symb_proc = NULL;
+    }
+;
+
+lista_de_expressoes_opcional:
+    | LPAREN expr_list RPAREN
+;
+
+goto_stmt:
+    GOTO identifier
+    {
+        //symbol1 = stack_find(ts, yytext);
+
+        if (symbol1) {
+            gen_code("\tDSVR r%02d, %d, %d\n", symbol1->label, symbol1->nl, nl);
+        } else {
+            yyerror("label não declarado.\n");
+        }
+    }
+;
+
+comando_condicional_else:
+    %prec LOWER_THAN_ELSE
+    | ELSE unlabelled_stmt
+;
+
+expr_list:
+    expression
     {
         if (write)
             gen_code("\tIMPR\n");
@@ -511,7 +496,7 @@ lista_de_expressoes:
 ;
 
 lista_de_expressoes_loop:
-    | COMMA expressao
+    | COMMA expression
     {
         if ( write )
             gen_code("\tIMPR\n");
@@ -519,7 +504,7 @@ lista_de_expressoes_loop:
     lista_de_expressoes_loop
 ;
 
-expressao:
+expression:
     expressao_simples
     | expressao_simples EQL expressao_simples { gen_code("\tCMIG\n"); }
     | expressao_simples NEQ expressao_simples { gen_code("\tCMDG\n"); }
@@ -552,7 +537,7 @@ termo_loop:
 ;
 
 fator:
-    variavel
+    variable
     {
         symbol1 = stack_find(ts, yytext);
         if (!symbol1)
@@ -601,19 +586,15 @@ fator:
     }
     | TRUE | FALSE | STRING
     //%prec LOWER_THAN_LPAREN
-    | LPAREN expressao RPAREN
+    | LPAREN expression RPAREN
     | NOT fator { gen_code("\tNEGA\n"); }
-;
-
-variavel:
-    identificador
 ;
 
 numero:
     NUMBER
 ;
 
-identificador:
+identifier:
     IDENT
     {
         symbol1 = stack_find(ts, yytext);
