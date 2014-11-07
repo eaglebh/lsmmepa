@@ -30,6 +30,16 @@ int write = 0;  // Variável condicional para indicar o uso de write()
 int read = 0;  // Variável condicional para indicar o uso de read()
 int is_label = 0;
 
+char *const_value = NULL;
+int const_number = 0;
+int integer_part = 0;
+int fractional_part = 0;
+int fractional_part_length = 0;
+int coefficient = 0;
+int exponent = 0;
+
+#define MAXNUMSTR 10
+
 int deb_line = 0;
 
 #define gen_code(...) { deb_line = __LINE__; pgen_code(__VA_ARGS__); }
@@ -176,7 +186,7 @@ type            : { is_label = 0; } simple_type
                 | { is_label = 0; } array_type
 ;
 
-array_type      : ARRAY numero OF simple_type;
+array_type      : ARRAY integer_constant OF simple_type;
 
 simple_type     : INTEGER
                 | REAL
@@ -561,13 +571,13 @@ simple_expr_loop:
 ;
 
 term:
-    factor_a termo_loop
+    factor_a term_loop
 ;
 
-termo_loop:
-    | TIMES factor_a { gen_code("\tMULT\n"); } termo_loop
-    | DIV    factor_a { gen_code("\tDIVI\n"); } termo_loop
-    | AND    factor_a { gen_code("\tCONJ\n"); } termo_loop
+term_loop:
+    | TIMES factor_a { gen_code("\tMULT\n"); } term_loop
+    | DIV    factor_a { gen_code("\tDIVI\n"); } term_loop
+    | AND    factor_a { gen_code("\tCONJ\n"); } term_loop
 ;
 
 factor_a:
@@ -609,24 +619,52 @@ factor_a:
             }
         }
     }
-    | numero
+    | constant
     {
         if (symb_proc && symb_proc->parameters[nparam] == P_ADDRESS)
             yyerror("parâmetro inteiro passado por referência.");
         if (symb_proc && nparam >= symb_proc->nParameter)
             yyerror("procedimento chamado com número inválido de parâmetros.");
 
-        gen_code("\tCRCT %s\n", yytext);
+        gen_code("\tCRCT %s\n", const_value);
     }
-    | TRUE | FALSE | STRING
+    //| TRUE | FALSE | STRING
     //%prec LOWER_THAN_LPAREN
     | LPAREN expression RPAREN
     | NOT factor_a { gen_code("\tNEGA\n"); }
 ;
 
-numero:
-    NUMBER
-;
+constant        : integer_constant 
+                | real_constant 
+                | char_constant 
+                | boolean_constant ;
+
+boolean_constant: FALSE { const_value = "0"; }
+                | TRUE { const_value = "1"; } ;
+
+integer_constant: unsigned_integer ;
+
+unsigned_integer: NUMBER { const_value = strdup(yytext); const_number = strtol(const_value, NULL, 10); } ;
+
+real_constant   : unsigned_real;
+
+unsigned_real   : unsigned_integer {integer_part = const_number; } 
+                    DOT  
+                    unsigned_integer 
+                    { 
+                        fractional_part = const_number; 
+                        fractional_part_length = strlen(const_value); 
+                        coefficient = integer_part + (fractional_part/(10^fractional_part_length)); 
+                    } 
+                    scale_factor { snprintf(const_value, MAXNUMSTR, "%d", coefficient*(10^exponent)); }
+                | unsigned_integer { integer_part = const_number; } DOT unsigned_integer
+                | unsigned_integer { coefficient = const_number; } 
+                    scale_factor { snprintf(const_value, MAXNUMSTR, "%d", coefficient*(10^exponent)); } ;
+
+scale_factor    : "E" PLUS unsigned_integer { exponent = const_number; }
+                | "E" MINUS unsigned_integer { exponent = -const_number; } ;
+
+char_constant   : STRING { const_value = strdup(yytext); } ;                
 
 identifier:
     IDENT
