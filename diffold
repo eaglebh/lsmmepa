@@ -4,12 +4,12 @@ for f in `ls t/*lsm`;
 do 
     diferente=0;
     ./compilador $f > /tmp/${f}.out 2> /tmp/${f}.err; 
-    r1=`diff ${f}.out /tmp/${f}.out`
+    r1="$(diff ${f}.out /tmp/${f}.out)"
     if [ ! -z "$r1" ] 
     then
         diferente=1;
     fi
-    r2=`diff  ${f}.err /tmp/${f}.err`
+    r2="$(diff  ${f}.err /tmp/${f}.err)"
     if [ ! -z "$r2" ] 
     then
         diferente=1;
@@ -19,7 +19,7 @@ do
     then
         echo ""
         echo "diff ${f}.out /tmp/${f}.out"; 
-        echo $f $r1 $r2
+        echo "$f $r1 $r2"
     fi
 
 done
