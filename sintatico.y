@@ -27,6 +27,7 @@ int nvars;        // Número de variáveis locais
 int nparam;        // Número do parâmetro
 int label = 0;
 int write = 0;  // Variável condicional para indicar o uso de write()
+int read = 0;  // Variável condicional para indicar o uso de read()
 int is_label = 0;
 
 int deb_line = 0;
@@ -61,7 +62,7 @@ int write_label(void) {
 %token PROCEDURE IF THEN ELSE UNTIL WHILE DO;
 %token TYPE WRITE READ IDENT;
 %token NUMBER TRUE FALSE STRING UNKNOWN;
-%token INTEGER REAL BOOLEAN CHAR LABEL;
+%token INTEGER REAL BOOLEAN CHAR LABEL RETURN;
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -345,6 +346,7 @@ unlabelled_stmt:assign_stmt
                 | write_stmt
                 | goto_stmt
                 | proc_stmt
+                | return_stmt 
                 | block_stmt
 ;
 
@@ -369,11 +371,47 @@ variable:
     identifier
 ;
 
+variable_list   :
+    {
+        if (read) {
+            gen_code("\tLEIT\n");
+        }
+    }
+    variable
+    {
+        if (read) {
+            if (!symbol1)
+                yyerror("variable nao declarada.");
+            if (symbol1->cat == C_PARAMETER && symbol1->passage == P_ADDRESS) {
+                gen_code("\tARMI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+            } else
+                gen_code("\tARMZ %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+        }
+    }
+    | variable_list COMMA 
+    {
+        if (read) {
+            gen_code("\tLEIT\n");
+        }
+    }
+    variable
+    {
+        if (read) {
+            if (!symbol1)
+                yyerror("variable nao declarada.");
+            if (symbol1->cat == C_PARAMETER && symbol1->passage == P_ADDRESS) {
+                gen_code("\tARMI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+            } else
+                gen_code("\tARMZ %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
+        }
+    }
+;
+
 //array_element   : identifier OPEN_BRACK expression CLOSE_BRACK ;
 
 if_stmt:
     IF condition
-    THEN unlabelled_stmt
+    THEN stmt_list
     {
         symbol1 = symbol_create("", 0, 0);
         gen_code("\tDSVS ");
@@ -391,8 +429,8 @@ if_stmt:
     END
 ;
 
-condition       : 
-expression 
+condition: 
+    expression 
     {
         symbol1 = symbol_create("", 0, 0);
         gen_code("\tDSVF ");
@@ -401,7 +439,7 @@ expression
         stack_push(labels, symbol1);
     };
 
-loop_stmt       : 
+loop_stmt: 
     {
         symbol1 = symbol_create("", 0, 0);
         symbol1->label = write_label();
@@ -420,10 +458,20 @@ loop_stmt       :
 
 stmt_prefix     : WHILE condition DO 
                 | DO;
+
 stmt_suffix     : UNTIL condition 
                 | END;
 
-read_stmt:      READ LPAREN comando_leitura_1 RPAREN ;
+read_stmt:      
+    READ 
+    {
+        read = 1;
+    }
+    LPAREN variable_list RPAREN 
+    {
+        read = 0;
+    }
+;
 
 write_stmt:
     WRITE
@@ -434,26 +482,6 @@ write_stmt:
     {
         write = 0;
     }
-;
-
-comando_leitura_1:
-    {
-        gen_code("\tLEIT\n");
-    }
-    variable
-    {
-        if (!symbol1)
-            yyerror("variable nao declarada.");
-        if (symbol1->cat == C_PARAMETER && symbol1->passage == P_ADDRESS) {
-            gen_code("\tARMI %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-        } else
-            gen_code("\tARMZ %d, %d # %s\n", symbol1->nl, symbol1->offset, symbol1->id);
-    }
-    comando_leitura_2
-;
-
-comando_leitura_2:
-    | COMMA comando_leitura_1
 ;
 
 proc_stmt:
@@ -472,6 +500,8 @@ proc_stmt:
     }
 ;
 
+return_stmt     : RETURN;
+
 lista_de_expressoes_opcional:
     | LPAREN expr_list RPAREN
 ;
@@ -479,8 +509,6 @@ lista_de_expressoes_opcional:
 goto_stmt:
     GOTO identifier
     {
-        //symbol1 = stack_find(ts, yytext);
-
         if (symbol1) {
             gen_code("\tDSVR r%02d, %d, %d\n", symbol1->label, symbol1->nl, nl);
         } else {
@@ -491,7 +519,7 @@ goto_stmt:
 
 comando_condicional_else:
     %prec LOWER_THAN_ELSE
-    | ELSE unlabelled_stmt
+    | ELSE stmt_list
 ;
 
 expr_list:
@@ -500,51 +528,49 @@ expr_list:
         if (write)
             gen_code("\tIMPR\n");
     }
-    lista_de_expressoes_loop
-;
-
-lista_de_expressoes_loop:
-    | COMMA expression
+    |
+    expr_list COMMA
+    expression
     {
-        if ( write )
+        if (write)
             gen_code("\tIMPR\n");
     }
-    lista_de_expressoes_loop
 ;
+
 
 expression:
-    expressao_simples
-    | expressao_simples EQL expressao_simples { gen_code("\tCMIG\n"); }
-    | expressao_simples NEQ expressao_simples { gen_code("\tCMDG\n"); }
-    | expressao_simples LSS expressao_simples { gen_code("\tCMME\n"); }
-    | expressao_simples GTR expressao_simples { gen_code("\tCMMA\n"); }
-    | expressao_simples LEQ expressao_simples { gen_code("\tCMEG\n"); }
-    | expressao_simples GEQ expressao_simples { gen_code("\tCMAG\n"); }
+    simple_expr
+    | simple_expr EQL simple_expr { gen_code("\tCMIG\n"); }
+    | simple_expr NEQ simple_expr { gen_code("\tCMDG\n"); }
+    | simple_expr LSS simple_expr { gen_code("\tCMME\n"); }
+    | simple_expr GTR simple_expr { gen_code("\tCMMA\n"); }
+    | simple_expr LEQ simple_expr { gen_code("\tCMEG\n"); }
+    | simple_expr GEQ simple_expr { gen_code("\tCMAG\n"); }
 ;
 
-expressao_simples:
-    termo expressao_simples_loop
-    | PLUS  termo expressao_simples_loop
-    | MINUS termo { gen_code("\tINVR\n"); } expressao_simples_loop
+simple_expr:
+    term simple_expr_loop
+    | PLUS  term simple_expr_loop
+    | MINUS term { gen_code("\tINVR\n"); } simple_expr_loop
 ;
 
-expressao_simples_loop:
-    | PLUS  termo { gen_code("\tSOMA\n"); } expressao_simples_loop
-    | MINUS termo { gen_code("\tSUBT\n"); } expressao_simples_loop
-    | OR     termo { gen_code("\tDISJ\n"); } expressao_simples_loop
+simple_expr_loop:
+    | PLUS  term { gen_code("\tSOMA\n"); } simple_expr_loop
+    | MINUS term { gen_code("\tSUBT\n"); } simple_expr_loop
+    | OR     term { gen_code("\tDISJ\n"); } simple_expr_loop
 ;
 
-termo:
-    fator termo_loop
+term:
+    factor_a termo_loop
 ;
 
 termo_loop:
-    | TIMES fator { gen_code("\tMULT\n"); } termo_loop
-    | DIV    fator { gen_code("\tDIVI\n"); } termo_loop
-    | AND    fator { gen_code("\tCONJ\n"); } termo_loop
+    | TIMES factor_a { gen_code("\tMULT\n"); } termo_loop
+    | DIV    factor_a { gen_code("\tDIVI\n"); } termo_loop
+    | AND    factor_a { gen_code("\tCONJ\n"); } termo_loop
 ;
 
-fator:
+factor_a:
     variable
     {
         symbol1 = stack_find(ts, yytext);
@@ -595,7 +621,7 @@ fator:
     | TRUE | FALSE | STRING
     //%prec LOWER_THAN_LPAREN
     | LPAREN expression RPAREN
-    | NOT fator { gen_code("\tNEGA\n"); }
+    | NOT factor_a { gen_code("\tNEGA\n"); }
 ;
 
 numero:

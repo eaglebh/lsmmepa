@@ -32,6 +32,7 @@ PRINTED		'[^'\n]*'
 "read"               		{ return READ;      }
 "write"              		{ return WRITE;     }
 "goto"               		{ return GOTO;      }
+"return"					{ return RETURN;	}
 "not"                		{ return NOT;       }
 "or"                 		{ return OR;        }
 "and"                		{ return AND;       }
