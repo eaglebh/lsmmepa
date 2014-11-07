@@ -29,6 +29,7 @@
 	CRCT 3
 	SOMA
 	ARMZ 0, 2 # k
+	CRCT 0
 	NEGA
 	ARMZ 0, 0 # b
 	CRCT 4

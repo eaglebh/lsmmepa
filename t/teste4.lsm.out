@@ -9,6 +9,7 @@
 	IMPR
 	CRVL 0, 1 # number
 	ARMZ 0, 0 # divisor
+	CRCT 1
 	ARMZ 0, 0 # nofactor
 R002:	NADA
 	CRVL 0, 0 # nofactor
@@ -23,6 +24,7 @@ R002:	NADA
 	CRCT 0
 	CMIG
 	DSVF R004
+	CRCT 0
 	ARMZ 0, 0 # nofactor
 	DSVS R005
 R004:	NADA
@@ -37,9 +39,11 @@ R003:	NADA
 	ARMZ 0, 1 # prime
 	CRVL 0, 1 # prime
 	DSVF R006
+	CRCT 'S'
 	IMPR
 	DSVS R007
 R006:	NADA
+	CRCT 'N'
 	IMPR
 R007:	NADA
 	DMEM 4

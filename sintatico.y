@@ -169,30 +169,16 @@ decl        :
                 stack_push(labels, symbol1);
             }
             |   
-            parte_de_declaracao_de_subrotinas_opcional
-            {
+            { 
+                nl++; offset = 0; 
+            }
+            proc_decl
+            { 
+                nl--; 
                 symbol1 = stack_pop(labels);
                 if(symbol1)
                     gen_code("R%03d:\tNADA\n", symbol1->label);
             }
-
-parte_de_declaracao_de_subrotinas_opcional:
-    { nl++; offset = 0; }
-    proc_decl
-    { nl--; }
-;
-
-type            : { is_label = 0; } simple_type
-                | { is_label = 0; } array_type
-;
-
-array_type      : ARRAY integer_constant OF simple_type;
-
-simple_type     : INTEGER
-                | REAL
-                | BOOLEAN
-                | CHAR
-                | { is_label = 1; } LABEL ;
 
 variable_decl:    
     type ident_list 
@@ -244,6 +230,18 @@ ident_list:
             }
         }
 ;
+
+type            : { is_label = 0; } simple_type
+                | { is_label = 0; } array_type
+;
+
+simple_type     : INTEGER
+                | REAL
+                | BOOLEAN
+                | CHAR
+                | { is_label = 1; } LABEL ;
+
+array_type      : ARRAY unsigned_integer OF simple_type;
 
 proc_decl   : proc_header
             {nl--;}
@@ -334,17 +332,20 @@ type_list       : parameter_type
 stmt_list:      stmt
                 | stmt_list SEMICOLON stmt ;
 
-stmt:identifier {
-//        symbol1 = stack_find(ts, yytext);
-        symbol1->nl = nl;
-        if (symbol1) {
-            gen_code("R%03d:\tENRT %d %d\n", symbol1->label, nl, nvars);
-        } else {
-            yyerror("label não declarado.\n");
-        }
-    } COLON unlabelled_stmt
-    | unlabelled_stmt
+stmt:           identifier 
+                {
+            //        symbol1 = stack_find(ts, yytext);
+                    symbol1->nl = nl;
+                    if (symbol1) {
+                        gen_code("R%03d:\tENRT %d %d\n", symbol1->label, nl, nvars);
+                    } else {
+                        yyerror("label não declarado.\n");
+                    }
+                } COLON unlabelled_stmt
+                | unlabelled_stmt
 ;
+
+label           : identifier;
 
 unlabelled_stmt:assign_stmt
                 | if_stmt
@@ -381,6 +382,7 @@ assign_stmt:
 
 variable:
     identifier
+    | array_element
 ;
 
 variable_list   :
@@ -419,7 +421,7 @@ variable_list   :
     }
 ;
 
-//array_element   : identifier OPEN_BRACK expression CLOSE_BRACK ;
+array_element   : identifier LBRACKET expression RBRACKET ;
 
 if_stmt:
     IF condition
@@ -433,7 +435,25 @@ if_stmt:
         gen_code("R%03d:\tNADA\n", symbol2->label);
         stack_push(labels, symbol1);
     }
-    comando_condicional_else
+    %prec LOWER_THAN_ELSE
+    {
+        symbol1 = stack_pop(labels);
+        gen_code("R%03d:\tNADA\n", symbol1->label);
+    }
+    END
+    |
+    IF condition
+    THEN stmt_list
+    {
+        symbol1 = symbol_create("", 0, 0);
+        gen_code("\tDSVS ");
+        symbol1->label = write_label();
+        gen_code("\n");
+        symbol2 = stack_pop(labels);
+        gen_code("R%03d:\tNADA\n", symbol2->label);
+        stack_push(labels, symbol1);
+    }
+    ELSE stmt_list
     {
         symbol1 = stack_pop(labels);
         gen_code("R%03d:\tNADA\n", symbol1->label);
@@ -449,7 +469,8 @@ condition:
         symbol1->label = write_label();
         gen_code("\n");
         stack_push(labels, symbol1);
-    };
+    }
+;
 
 loop_stmt:  WHILE condition DO stmt_list 
             {
@@ -491,6 +512,17 @@ write_stmt:
     }
 ;
 
+goto_stmt:
+    GOTO label
+    {
+        if (symbol1) {
+            gen_code("\tDSVR r%02d, %d, %d\n", symbol1->label, symbol1->nl, nl);
+        } else {
+            yyerror("label não declarado.\n");
+        }
+    }
+;
+
 proc_stmt:
     identifier
     {
@@ -507,27 +539,11 @@ proc_stmt:
     }
 ;
 
-return_stmt     : RETURN;
-
 lista_de_expressoes_opcional:
     | LPAREN expr_list RPAREN
 ;
 
-goto_stmt:
-    GOTO identifier
-    {
-        if (symbol1) {
-            gen_code("\tDSVR r%02d, %d, %d\n", symbol1->label, symbol1->nl, nl);
-        } else {
-            yyerror("label não declarado.\n");
-        }
-    }
-;
-
-comando_condicional_else:
-    %prec LOWER_THAN_ELSE
-    | ELSE stmt_list
-;
+return_stmt     : RETURN;
 
 expr_list:
     expression
@@ -577,10 +593,14 @@ term_loop:
     | AND    factor_a { gen_code("\tCONJ\n"); } term_loop
 ;
 
-factor_a:
+factor_a:   factor 
+            | NOT factor { gen_code("\tNEGA\n"); }
+;
+
+factor:
     variable
     {
-        symbol1 = stack_find(ts, yytext);
+//        symbol1 = stack_find(ts, yytext);
         if (!symbol1)
             yyerror("variável não declarada %s.", yytext);
 
@@ -625,10 +645,7 @@ factor_a:
 
         gen_code("\tCRCT %s\n", const_value);
     }
-    //| TRUE | FALSE | STRING
-    //%prec LOWER_THAN_LPAREN
-    | LPAREN expression RPAREN
-    | NOT factor_a { gen_code("\tNEGA\n"); }
+    | LPAREN expression RPAREN    
 ;
 
 constant        : integer_constant 
@@ -645,8 +662,11 @@ unsigned_integer: NUMBER { const_value = strdup(yytext); const_number = strtol(c
 
 real_constant   : unsigned_real;
 
-unsigned_real   : unsigned_integer {integer_part = const_number; } 
+unsigned_real   : unsigned_integer 
                     DOT  
+                    { 
+                        integer_part = const_number; 
+                    } 
                     unsigned_integer 
                     { 
                         fractional_part = const_number; 
@@ -654,7 +674,18 @@ unsigned_real   : unsigned_integer {integer_part = const_number; }
                         coefficient = integer_part + (fractional_part/(10^fractional_part_length)); 
                     } 
                     scale_factor { snprintf(const_value, MAXNUMSTR, "%d", coefficient*(10^exponent)); }
-                | unsigned_integer { integer_part = const_number; } DOT unsigned_integer
+                | unsigned_integer
+                    DOT  
+                    { 
+                        integer_part = const_number; 
+                    } 
+                    unsigned_integer 
+                    { 
+                        fractional_part = const_number; 
+                        fractional_part_length = strlen(const_value); 
+                        coefficient = integer_part + (fractional_part/(10^fractional_part_length)); 
+                        snprintf(const_value, MAXNUMSTR, "%d", coefficient);
+                    }
                 | unsigned_integer { coefficient = const_number; } 
                     scale_factor { snprintf(const_value, MAXNUMSTR, "%d", coefficient*(10^exponent)); } ;
 

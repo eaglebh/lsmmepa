@@ -13,4 +13,23 @@
 	ARMZ 0, 1 # j
 	CRCT 2
 	ARMZ 0, 2 # k
-	CHPR R000, 0
+	CRVL 0, 0 # i
+	CRCT 2
+	CRVL 0, 0 # i
+	MULT
+	CRCT 3
+	SOMA
+	CRVL 0, 0 # i
+	CRVL 0, 1 # j
+	CRVL 0, 1 # j
+	SOMA
+	CRCT 3
+	CRVL 0, 0 # c
+	SOMA
+	ARMZ 0, 0 # i
+	CRVL 0, 0 # i
+	CRVL 0, 0 # i
+	CRVL 0, 0 # i
+	ARMZ 0, 0 # i
+	DMEM 6
+	PARA

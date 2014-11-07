@@ -10,6 +10,7 @@ R002:	ENPR 1
 	DSVS R004
 	CRVL 1, -5 # number
 	ARMZ 0, 1 # divisor
+	CRCT 1
 	ARMZ 0, 1 # prime
 R005:	NADA
 	CRVL 0, 1 # prime
@@ -24,6 +25,7 @@ R005:	NADA
 	CRCT 0
 	CMIG
 	DSVF R007
+	CRCT 0
 	ARMZ 0, 1 # prime
 	DSVS R008
 R007:	NADA
@@ -50,9 +52,11 @@ R004:	NADA
 	ARMZ 0, 1 # prime
 	CRVL 0, 1 # prime
 	DSVF R009
+	CRCT 'S'
 	IMPR
 	DSVS R010
 R009:	NADA
+	CRCT 'N'
 	IMPR
 R010:	NADA
 	RTPR 0, 2
