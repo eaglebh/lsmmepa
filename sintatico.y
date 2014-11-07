@@ -334,9 +334,7 @@ type_list       : parameter_type
 stmt_list:      stmt
                 | stmt_list SEMICOLON stmt ;
 
-stmt:
-    identifier
-    {
+stmt:identifier {
 //        symbol1 = stack_find(ts, yytext);
         symbol1->nl = nl;
         if (symbol1) {
@@ -344,14 +342,18 @@ stmt:
         } else {
             yyerror("label não declarado.\n");
         }
-    }
-    COLON unlabelled_stmt
+    } COLON unlabelled_stmt
     | unlabelled_stmt
 ;
 
 unlabelled_stmt:assign_stmt
                 | if_stmt
-                | loop_stmt
+                | {
+                    symbol1 = symbol_create("", 0, 0);
+                    symbol1->label = write_label();
+                    gen_code(":\tNADA\n");
+                    stack_push(labels, symbol1);
+                } loop_stmt 
                 | read_stmt
                 | write_stmt
                 | goto_stmt
@@ -449,28 +451,23 @@ condition:
         stack_push(labels, symbol1);
     };
 
-loop_stmt: 
-    {
-        symbol1 = symbol_create("", 0, 0);
-        symbol1->label = write_label();
-        gen_code(":\tNADA\n");
-        stack_push(labels, symbol1);
-    } 
-    stmt_prefix 
-    stmt_list 
-    {
-        symbol1 = stack_pop(labels);
-        symbol2 = stack_pop(labels);
-        gen_code("\tDSVS r%02d\n", symbol2->label);
-        gen_code("R%03d:\tNADA\n", symbol1->label);
-    } 
-    stmt_suffix;
-
-stmt_prefix     : WHILE condition DO 
-                | DO;
-
-stmt_suffix     : UNTIL condition 
-                | END;
+loop_stmt:  WHILE condition DO stmt_list 
+            {
+                symbol1 = stack_pop(labels);
+                symbol2 = stack_pop(labels);
+                gen_code("\tDSVS r%02d\n", symbol2->label);
+                gen_code("R%03d:\tNADA\n", symbol1->label);
+            } 
+            END
+            |
+            DO stmt_list 
+            {
+                symbol1 = stack_pop(labels);
+                symbol2 = stack_pop(labels);
+                gen_code("\tDSVS r%02d\n", symbol2->label);
+                gen_code("R%03d:\tNADA\n", symbol1->label);
+            } 
+            UNTIL condition;
 
 read_stmt:      
     READ 
